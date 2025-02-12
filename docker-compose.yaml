@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./pocketbase-data:/pb/pb_data
+    restart: unless-stopped
