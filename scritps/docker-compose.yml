@@ -1,0 +1,12 @@
+ pocketbase:
+    build:
+      context: ./pocketbase # Set context to ./pocketbase
+      dockerfile: Dockerfile # Directly reference the Dockerfile in the pocketbase folder
+      args:
+        TARGETOS: linux
+        TARGETARCH: amd64
+    volumes:
+      - ./pocketbase/pb_data:/home/pocketbase/pb_data # Mount pb_data folder
+    ports:
+      - '8090:8090'
+    restart: unless-stopped
