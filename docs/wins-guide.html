@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>Self-Hosting Guide: React, Flask & PocketBase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-900 font-sans">
+    <div class="max-w-4xl mx-auto py-10 px-6">
+      <h1 class="text-3xl font-bold mb-6">
+        🖥️ Self-Hosting Guide: React + Flask + PocketBase on Windows
+      </h1>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">🧠 Overview</h2>
+        <p>
+          This guide walks you through hosting a static React frontend, a Flask
+          backend, and a PocketBase database on your Windows PC with HTTPS
+          support using Caddy.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">🔧 1. Network Configuration</h2>
+        <ol class="list-decimal ml-5">
+          <li>
+            Login to your Wi-Fi router admin page. This is usually
+            <code>192.168.0.1</code> or <code>192.168.1.1</code>. Check the
+            bottom of your router or your ISP guide for the login URL and
+            credentials.
+          </li>
+          <li>
+            Find your connected device (your Windows PC) in the
+            <strong>DHCP Client List</strong> or <strong>Device List</strong>.
+            Note down the IP address, e.g., <code>192.168.0.150</code>.
+          </li>
+          <li>
+            Look for an option called <strong>DHCP Reservation</strong> or
+            <strong>Static Lease</strong>. Reserve that IP for your PC’s MAC
+            address. This ensures your PC always gets the same local IP.
+          </li>
+          <li>
+            Navigate to <strong>Port Forwarding</strong> section in your router
+            settings.
+          </li>
+          <li>
+            Add 2 rules:
+            <ul class="list-disc ml-5">
+              <li>
+                <strong>Port 80 (HTTP)</strong> → forward to
+                <code>192.168.0.150:80</code>
+              </li>
+              <li>
+                <strong>Port 443 (HTTPS)</strong> → forward to
+                <code>192.168.0.150:443</code>
+              </li>
+            </ul>
+          </li>
+          <li>
+            Click Save and Apply. Your router will now route external traffic to
+            your PC.
+          </li>
+          <li>
+            On Windows:
+            <ul class="list-disc ml-5">
+              <li>
+                Search for
+                <code>Windows Defender Firewall with Advanced Security</code>
+              </li>
+              <li>
+                Click <strong>Inbound Rules</strong> → New Rule → Port → TCP →
+                80, 443 → Allow → Name it “Web Ports”
+              </li>
+            </ul>
+          </li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">
+          🌐 2. Dynamic DNS & DNS Setup
+        </h2>
+        <p>
+          If your ISP gives you a dynamic IP (changes occasionally), use Dynamic
+          DNS to avoid losing access every time your IP changes.
+        </p>
+        <ol class="list-decimal ml-5">
+          <li>
+            Register a free domain (e.g., at
+            <a
+              href="https://freenom.com"
+              class="text-blue-600 underline"
+              >Freenom</a
+            >) or buy one (e.g., via
+            <a
+              href="https://namecheap.com"
+              class="text-blue-600 underline"
+              >Namecheap</a
+            >
+            or
+            <a
+              href="https://cloudflare.com"
+              class="text-blue-600 underline"
+              >Cloudflare</a
+            >).
+          </li>
+          <li>
+            Sign up at
+            <a
+              href="https://www.cloudflare.com/"
+              class="text-blue-600 underline"
+              >Cloudflare</a
+            >. Add your domain.
+          </li>
+          <li>
+            Change your domain's DNS servers (from your domain registrar) to
+            point to Cloudflare’s DNS (they will guide you).
+          </li>
+          <li>
+            In Cloudflare → DNS tab:
+            <ul class="list-disc ml-5">
+              <li>
+                Add A record: <code>abc.com</code> → your
+                <a
+                  href="https://whatismyipaddress.com"
+                  class="text-blue-600 underline"
+                  >public IP address</a
+                >
+              </li>
+              <li>Add CNAME record: <code>api</code> → <code>abc.com</code></li>
+              <li>
+                Add CNAME record: <code>pocketbase</code> → <code>abc.com</code>
+              </li>
+            </ul>
+          </li>
+          <li>
+            Install a DDNS updater on your Windows PC. Recommended:
+            <a
+              href="https://github.com/lifenjoiner/cloudflare-ddns"
+              class="text-blue-600 underline"
+              >Cloudflare DDNS script</a
+            >
+            or
+            <a
+              href="https://github.com/oznu/cloudflare-ddns"
+              class="text-blue-600 underline"
+              >oznu version (Docker)</a
+            >. This keeps your IP updated with Cloudflare automatically.
+          </li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">
+          ⚙️ 3. Caddy Reverse Proxy Setup
+        </h2>
+        <ol class="list-decimal ml-5">
+          <li>Download & extract Caddy to <code>C:\Caddy</code></li>
+          <li>Add Caddy to system PATH.</li>
+          <li>Create folder <code>C:\Caddy\site\react</code></li>
+          <li>
+            Create <code>Caddyfile</code>:
+            <pre
+              class="bg-gray-200 p-4 rounded mt-2 text-sm overflow-x-auto"><code>abc.com {
+  root * C:\\Caddy\\site\\react
+  file_server
+  try_files {path} /index.html
+}
+
+api.abc.com {
+  reverse_proxy localhost:5000
+}
+
+pocketbase.abc.com {
+  reverse_proxy localhost:8090
+}</code></pre>
+          </li>
+          <li>
+            Run: <code>caddy run</code> (for testing) or
+            <code>caddy install</code> to run as Windows service.
+          </li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">
+          🚀 4. Deploy React App (Static)
+        </h2>
+        <ol class="list-decimal ml-5">
+          <li>Build: <code>npm run build</code></li>
+          <li>
+            Copy the <code>build</code> folder output to:
+            <code>C:\Caddy\site\react</code>
+          </li>
+          <li>Visit: <code>https://abc.com</code> from any browser</li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">
+          🐍 5. Run Flask API (Port 5000)
+        </h2>
+        <ol class="list-decimal ml-5">
+          <li>Install Flask: <code>pip install flask waitress</code></li>
+          <li>
+            Sample app:
+            <pre
+              class="bg-gray-200 p-4 rounded mt-2 text-sm overflow-x-auto"><code>from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+  return "Hello from Flask!"</code></pre>
+          </li>
+          <li>Run with: <code>waitress-serve --port=5000 app:app</code></li>
+          <li>
+            Use
+            <a
+              href="https://nssm.cc"
+              class="text-blue-600 underline"
+              >NSSM</a
+            >
+            to run it as a Windows service.
+          </li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">
+          🐳 6. Run PocketBase via Docker (Port 8090)
+        </h2>
+        <ol class="list-decimal ml-5">
+          <li>
+            Install
+            <a
+              href="https://www.docker.com/products/docker-desktop/"
+              class="text-blue-600 underline"
+              >Docker Desktop</a
+            >.
+          </li>
+          <li>
+            Run:
+            <pre
+              class="bg-gray-200 p-4 rounded mt-2 text-sm overflow-x-auto"><code>docker volume create pocketbase_data
+
+docker run -d --name pocketbase \
+  -p 127.0.0.1:8090:8090 \
+  -v pocketbase_data:/pb_data \
+  pocketbase/pocketbase</code></pre>
+          </li>
+          <li>Visit: <code>https://pocketbase.abc.com</code></li>
+        </ol>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-2">🔐 7. Security Tips</h2>
+        <ul class="list-disc ml-5">
+          <li>Allow only ports 80 and 443 in Windows Firewall and router.</li>
+          <li>
+            Protect PocketBase admin with basic auth:
+            <pre
+              class="bg-gray-200 p-4 rounded mt-2 text-sm overflow-x-auto"><code>pocketbase.abc.com {
+  reverse_proxy localhost:8090
+  basicauth /admin* {
+    admin &lt;hashed-password&gt;
+  }
+}</code></pre>
+          </li>
+          <li>Generate password hash: <code>caddy hash-password</code></li>
+          <li>Keep services updated regularly.</li>
+        </ul>
+      </section>
+
+      <footer class="text-sm text-center text-gray-500 mt-10">
+        Built with ❤️ for self-hosters. Need automation scripts or PDF version?
+        Just ask!
+      </footer>
+    </div>
+  </body>
+</html>
